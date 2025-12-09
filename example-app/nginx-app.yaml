@@ -1,0 +1,236 @@
+# Complete Nginx Application Example for ArgoCD
+# This file demonstrates a full application deployment with:
+# - Namespace
+# - Deployment (2 replicas)
+# - Service (ClusterIP)
+# - ConfigMap (Custom HTML)
+# - Istio Gateway & VirtualService (Optional)
+#
+# Upload this file to your Git repository and deploy via ArgoCD
+
+---
+# Namespace for the application
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: nginx-test
+  labels:
+    app: nginx-test
+
+---
+# Deployment - 2 replicas of nginx
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nginx-deployment
+  namespace: nginx-test
+  labels:
+    app: nginx
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: nginx
+  template:
+    metadata:
+      labels:
+        app: nginx
+        version: v1
+    spec:
+      containers:
+      - name: nginx
+        image: nginx:1.25-alpine
+        ports:
+        - containerPort: 80
+          name: http
+        resources:
+          requests:
+            cpu: 100m
+            memory: 128Mi
+          limits:
+            cpu: 200m
+            memory: 256Mi
+        livenessProbe:
+          httpGet:
+            path: /
+            port: 80
+          initialDelaySeconds: 10
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /
+            port: 80
+          initialDelaySeconds: 5
+          periodSeconds: 5
+        volumeMounts:
+        - name: nginx-config
+          mountPath: /usr/share/nginx/html/index.html
+          subPath: index.html
+      volumes:
+      - name: nginx-config
+        configMap:
+          name: nginx-html
+
+---
+# Service - ClusterIP for internal access
+apiVersion: v1
+kind: Service
+metadata:
+  name: nginx-service
+  namespace: nginx-test
+  labels:
+    app: nginx
+spec:
+  type: ClusterIP
+  ports:
+  - port: 80
+    targetPort: 80
+    protocol: TCP
+    name: http
+  selector:
+    app: nginx
+
+---
+# ConfigMap - Custom HTML page
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: nginx-html
+  namespace: nginx-test
+data:
+  index.html: |
+    <!DOCTYPE html>
+    <html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>ArgoCD Test - Nginx</title>
+        <style>
+            * {
+                margin: 0;
+                padding: 0;
+                box-sizing: border-box;
+            }
+            body {
+                font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                display: flex;
+                justify-content: center;
+                align-items: center;
+                min-height: 100vh;
+                padding: 20px;
+            }
+            .container {
+                background: white;
+                padding: 50px;
+                border-radius: 20px;
+                box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+                text-align: center;
+                max-width: 600px;
+                width: 100%;
+            }
+            h1 {
+                color: #667eea;
+                margin-bottom: 20px;
+                font-size: 2.5em;
+            }
+            .status {
+                color: #28a745;
+                font-size: 24px;
+                font-weight: bold;
+                margin: 20px 0;
+            }
+            .info {
+                margin-top: 30px;
+                color: #666;
+                text-align: left;
+            }
+            .info-item {
+                display: flex;
+                justify-content: space-between;
+                padding: 10px;
+                border-bottom: 1px solid #eee;
+            }
+            .info-item:last-child {
+                border-bottom: none;
+            }
+            .label {
+                font-weight: bold;
+                color: #333;
+            }
+            .value {
+                color: #667eea;
+            }
+            .emoji {
+                font-size: 3em;
+                margin-bottom: 20px;
+            }
+        </style>
+    </head>
+    <body>
+        <div class="container">
+            <div class="emoji">🚀</div>
+            <h1>ArgoCD + Nginx</h1>
+            <div class="status">✅ Deployment Successful!</div>
+            <div class="info">
+                <div class="info-item">
+                    <span class="label">Namespace:</span>
+                    <span class="value">nginx-test</span>
+                </div>
+                <div class="info-item">
+                    <span class="label">Replicas:</span>
+                    <span class="value">2</span>
+                </div>
+                <div class="info-item">
+                    <span class="label">Managed by:</span>
+                    <span class="value">ArgoCD</span>
+                </div>
+                <div class="info-item">
+                    <span class="label">GitOps:</span>
+                    <span class="value">Enabled</span>
+                </div>
+            </div>
+        </div>
+    </body>
+    </html>
+
+---
+# Istio Gateway - External access (Optional)
+# Update the domain before applying
+apiVersion: networking.istio.io/v1beta1
+kind: Gateway
+metadata:
+  name: nginx-gateway
+  namespace: nginx-test
+spec:
+  selector:
+    istio: ingressgateway
+  servers:
+  - port:
+      number: 80
+      name: http
+      protocol: HTTP
+    hosts:
+    - "nginx.yourdomain.com"  # ⚠️ CHANGE THIS to your domain
+
+---
+# Istio VirtualService - Routes traffic to nginx service
+apiVersion: networking.istio.io/v1beta1
+kind: VirtualService
+metadata:
+  name: nginx-virtualservice
+  namespace: nginx-test
+spec:
+  hosts:
+  - "nginx.yourdomain.com"  # ⚠️ CHANGE THIS to your domain
+  gateways:
+  - nginx-gateway
+  http:
+  - match:
+    - uri:
+        prefix: /
+    route:
+    - destination:
+        host: nginx-service
+        port:
+          number: 80
