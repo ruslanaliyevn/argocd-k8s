@@ -1,0 +1,467 @@
+# Complete Nginx Application Example for ArgoCD
+# This file demonstrates a full application deployment with:
+# - Namespace
+# - Deployment (2 replicas)
+# - Service (ClusterIP)
+# - ConfigMap (Modern Animated HTML)
+# - Istio Gateway & VirtualService (Optional)
+#
+# Upload this file to your Git repository and deploy via ArgoCD
+
+---
+# Namespace for the application
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: nginx-test
+  labels:
+    app: nginx-test
+
+---
+# Deployment - 2 replicas of nginx
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nginx-deployment
+  namespace: nginx-test
+  labels:
+    app: nginx
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: nginx
+  template:
+    metadata:
+      labels:
+        app: nginx
+        version: v1
+    spec:
+      containers:
+      - name: nginx
+        image: nginx:1.25-alpine
+        ports:
+        - containerPort: 80
+          name: http
+        resources:
+          requests:
+            cpu: 100m
+            memory: 128Mi
+          limits:
+            cpu: 200m
+            memory: 256Mi
+        livenessProbe:
+          httpGet:
+            path: /
+            port: 80
+          initialDelaySeconds: 10
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /
+            port: 80
+          initialDelaySeconds: 5
+          periodSeconds: 5
+        volumeMounts:
+        - name: nginx-config
+          mountPath: /usr/share/nginx/html/index.html
+          subPath: index.html
+      volumes:
+      - name: nginx-config
+        configMap:
+          name: nginx-html
+
+---
+# Service - ClusterIP for internal access
+apiVersion: v1
+kind: Service
+metadata:
+  name: nginx-service
+  namespace: nginx-test
+  labels:
+    app: nginx
+spec:
+  type: ClusterIP
+  ports:
+  - port: 80
+    targetPort: 80
+    protocol: TCP
+    name: http
+  selector:
+    app: nginx
+
+---
+# ConfigMap - Modern Animated HTML page
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: nginx-html
+  namespace: nginx-test
+data:
+  index.html: |
+    <!DOCTYPE html>
+    <html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>GitOps with ArgoCD 🚀</title>
+        <style>
+            * {
+                margin: 0;
+                padding: 0;
+                box-sizing: border-box;
+            }
+            
+            body {
+                font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+                background: linear-gradient(135deg, #667eea 0%, #764ba2 50%, #f093fb 100%);
+                min-height: 100vh;
+                display: flex;
+                justify-content: center;
+                align-items: center;
+                padding: 20px;
+                overflow: hidden;
+            }
+            
+            /* Animated background particles */
+            .particles {
+                position: fixed;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100%;
+                overflow: hidden;
+                z-index: 0;
+            }
+            
+            .particle {
+                position: absolute;
+                background: rgba(255, 255, 255, 0.3);
+                border-radius: 50%;
+                animation: float 15s infinite ease-in-out;
+            }
+            
+            @keyframes float {
+                0%, 100% { transform: translateY(0) translateX(0); }
+                50% { transform: translateY(-100px) translateX(50px); }
+            }
+            
+            .container {
+                background: rgba(255, 255, 255, 0.95);
+                backdrop-filter: blur(10px);
+                padding: 60px;
+                border-radius: 30px;
+                box-shadow: 0 30px 90px rgba(0, 0, 0, 0.3);
+                text-align: center;
+                max-width: 700px;
+                width: 100%;
+                position: relative;
+                z-index: 1;
+                animation: slideUp 0.8s ease-out;
+            }
+            
+            @keyframes slideUp {
+                from {
+                    opacity: 0;
+                    transform: translateY(50px);
+                }
+                to {
+                    opacity: 1;
+                    transform: translateY(0);
+                }
+            }
+            
+            .logo {
+                font-size: 5em;
+                margin-bottom: 20px;
+                animation: bounce 2s infinite;
+            }
+            
+            @keyframes bounce {
+                0%, 100% { transform: translateY(0); }
+                50% { transform: translateY(-20px); }
+            }
+            
+            h1 {
+                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                -webkit-background-clip: text;
+                -webkit-text-fill-color: transparent;
+                background-clip: text;
+                font-size: 3em;
+                font-weight: 900;
+                margin-bottom: 15px;
+                letter-spacing: -1px;
+            }
+            
+            .subtitle {
+                color: #666;
+                font-size: 1.3em;
+                margin-bottom: 40px;
+                font-weight: 300;
+            }
+            
+            .status-badge {
+                display: inline-flex;
+                align-items: center;
+                gap: 10px;
+                background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+                color: white;
+                padding: 15px 30px;
+                border-radius: 50px;
+                font-size: 1.2em;
+                font-weight: 600;
+                margin: 20px 0;
+                box-shadow: 0 10px 30px rgba(40, 167, 69, 0.3);
+                animation: pulse 2s infinite;
+            }
+            
+            @keyframes pulse {
+                0%, 100% { transform: scale(1); }
+                50% { transform: scale(1.05); }
+            }
+            
+            .info-grid {
+                display: grid;
+                grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+                gap: 20px;
+                margin-top: 40px;
+            }
+            
+            .info-card {
+                background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+                padding: 25px;
+                border-radius: 20px;
+                transition: all 0.3s ease;
+            }
+            
+            .info-card:hover {
+                transform: translateY(-10px);
+                box-shadow: 0 20px 40px rgba(0, 0, 0, 0.2);
+            }
+            
+            .info-icon {
+                font-size: 2.5em;
+                margin-bottom: 10px;
+            }
+            
+            .info-label {
+                font-size: 0.9em;
+                color: #666;
+                text-transform: uppercase;
+                letter-spacing: 1px;
+                margin-bottom: 5px;
+            }
+            
+            .info-value {
+                font-size: 1.3em;
+                font-weight: 700;
+                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                -webkit-background-clip: text;
+                -webkit-text-fill-color: transparent;
+                background-clip: text;
+            }
+            
+            .gitops-flow {
+                margin-top: 40px;
+                padding: 30px;
+                background: rgba(102, 126, 234, 0.1);
+                border-radius: 20px;
+                border: 2px solid rgba(102, 126, 234, 0.3);
+            }
+            
+            .flow-title {
+                font-size: 1.5em;
+                font-weight: 700;
+                color: #667eea;
+                margin-bottom: 20px;
+            }
+            
+            .flow-steps {
+                display: flex;
+                justify-content: space-around;
+                align-items: center;
+                flex-wrap: wrap;
+                gap: 15px;
+            }
+            
+            .flow-step {
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                gap: 10px;
+            }
+            
+            .flow-icon {
+                font-size: 3em;
+                animation: rotate 3s infinite linear;
+            }
+            
+            @keyframes rotate {
+                from { transform: rotate(0deg); }
+                to { transform: rotate(360deg); }
+            }
+            
+            .flow-arrow {
+                font-size: 2em;
+                color: #667eea;
+            }
+            
+            .flow-text {
+                font-size: 0.9em;
+                font-weight: 600;
+                color: #667eea;
+            }
+            
+            .footer {
+                margin-top: 40px;
+                padding-top: 20px;
+                border-top: 2px solid rgba(102, 126, 234, 0.2);
+                color: #999;
+                font-size: 0.9em;
+            }
+            
+            @media (max-width: 768px) {
+                .container {
+                    padding: 40px 30px;
+                }
+                h1 {
+                    font-size: 2em;
+                }
+                .info-grid {
+                    grid-template-columns: 1fr;
+                }
+                .flow-steps {
+                    flex-direction: column;
+                }
+                .flow-arrow {
+                    transform: rotate(90deg);
+                }
+            }
+        </style>
+    </head>
+    <body>
+        <!-- Animated particles -->
+        <div class="particles" id="particles"></div>
+        
+        <div class="container">
+            <div class="logo">🚀</div>
+            <h1>GitOps in Action</h1>
+            <p class="subtitle">Powered by ArgoCD & Kubernetes</p>
+            
+            <div class="status-badge">
+                <span>✨</span>
+                <span>Deployment Successful!</span>
+            </div>
+            
+            <div class="info-grid">
+                <div class="info-card">
+                    <div class="info-icon">📦</div>
+                    <div class="info-label">Namespace</div>
+                    <div class="info-value">nginx-test</div>
+                </div>
+                
+                <div class="info-card">
+                    <div class="info-icon">⚡</div>
+                    <div class="info-label">Replicas</div>
+                    <div class="info-value">2</div>
+                </div>
+                
+                <div class="info-card">
+                    <div class="info-icon">🔄</div>
+                    <div class="info-label">Sync Policy</div>
+                    <div class="info-value">Auto</div>
+                </div>
+                
+                <div class="info-card">
+                    <div class="info-icon">🎯</div>
+                    <div class="info-label">Manager</div>
+                    <div class="info-value">ArgoCD</div>
+                </div>
+            </div>
+            
+            <div class="gitops-flow">
+                <div class="flow-title">🔄 GitOps Workflow</div>
+                <div class="flow-steps">
+                    <div class="flow-step">
+                        <div class="flow-icon">📝</div>
+                        <div class="flow-text">Git Push</div>
+                    </div>
+                    <div class="flow-arrow">→</div>
+                    <div class="flow-step">
+                        <div class="flow-icon">🤖</div>
+                        <div class="flow-text">ArgoCD Sync</div>
+                    </div>
+                    <div class="flow-arrow">→</div>
+                    <div class="flow-step">
+                        <div class="flow-icon">☸️</div>
+                        <div class="flow-text">K8s Deploy</div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="footer">
+                <p>🎨 This page was deployed via GitOps</p>
+                <p>Edit in Git → Push → Auto-sync → Live!</p>
+            </div>
+        </div>
+        
+        <script>
+            // Create animated particles
+            const particlesContainer = document.getElementById('particles');
+            const particleCount = 30;
+            
+            for (let i = 0; i < particleCount; i++) {
+                const particle = document.createElement('div');
+                particle.className = 'particle';
+                particle.style.width = Math.random() * 10 + 5 + 'px';
+                particle.style.height = particle.style.width;
+                particle.style.left = Math.random() * 100 + '%';
+                particle.style.top = Math.random() * 100 + '%';
+                particle.style.animationDelay = Math.random() * 15 + 's';
+                particle.style.animationDuration = (Math.random() * 10 + 10) + 's';
+                particlesContainer.appendChild(particle);
+            }
+        </script>
+    </body>
+    </html>
+
+---
+# Istio Gateway - External access (Optional)
+# Update the domain before applying
+apiVersion: networking.istio.io/v1beta1
+kind: Gateway
+metadata:
+  name: nginx-gateway
+  namespace: nginx-test
+spec:
+  selector:
+    istio: ingressgateway
+  servers:
+  - port:
+      number: 80
+      name: http
+      protocol: HTTP
+    hosts:
+    - "nginx.yourdomain.com"  # ⚠️ CHANGE THIS to your domain
+
+---
+# Istio VirtualService - Routes traffic to nginx service
+apiVersion: networking.istio.io/v1beta1
+kind: VirtualService
+metadata:
+  name: nginx-virtualservice
+  namespace: nginx-test
+spec:
+  hosts:
+  - "nginx.yourdomain.com"  # ⚠️ CHANGE THIS to your domain
+  gateways:
+  - nginx-gateway
+  http:
+  - match:
+    - uri:
+        prefix: /
+    route:
+    - destination:
+        host: nginx-service
+        port:
+          number: 80
