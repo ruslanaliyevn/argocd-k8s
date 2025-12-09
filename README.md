@@ -1,12 +1,15 @@
-# 🚀 ArgoCD Kubernetes Handbook
-
-[![Kubernetes](https://img.shields.io/badge/Kubernetes-326CE5?style=for-the-badge&logo=kubernetes&logoColor=white)](https://kubernetes.io/)
-[![ArgoCD](https://img.shields.io/badge/ArgoCD-EF7B4D?style=for-the-badge&logo=argo&logoColor=white)](https://argoproj.github.io/argo-cd/)
-[![Istio](https://img.shields.io/badge/Istio-466BB0?style=for-the-badge&logo=istio&logoColor=white)](https://istio.io/)
-[![GitOps](https://img.shields.io/badge/GitOps-FC6D26?style=for-the-badge&logo=git&logoColor=white)](https://opengitops.dev/)
-
-A comprehensive, hands-on guide to learning ArgoCD and implementing GitOps on Kubernetes. This repository provides practical configurations and real-world examples based on production experience.
-
+<div align="center">
+  <img src="https://argo-cd.readthedocs.io/en/stable/assets/logo.png" alt="ArgoCD Logo" width="200"/>
+  <h1>ArgoCD Kubernetes Handbook</h1>
+  <p>
+    <img src="https://img.shields.io/badge/Kubernetes-326CE5?style=for-the-badge&logo=kubernetes&logoColor=white" alt="Kubernetes"/>
+    <img src="https://img.shields.io/badge/ArgoCD-EF7B4D?style=for-the-badge&logo=argo&logoColor=white" alt="ArgoCD"/>
+    <img src="https://img.shields.io/badge/Istio-466BB0?style=for-the-badge&logo=istio&logoColor=white" alt="Istio"/>
+    <img src="https://img.shields.io/badge/GitOps-FC6D26?style=for-the-badge&logo=git&logoColor=white" alt="GitOps"/>
+    <img src="https://img.shields.io/badge/License-MIT-green?style=for-the-badge" alt="License"/>
+  </p>
+  <p><strong>Production-ready ArgoCD configurations and GitOps best practices for Kubernetes</strong></p>
+</div>
 ---
 
 ## 📖 Table of Contents
@@ -208,40 +211,235 @@ Configure DNS to point to your Istio Ingress Gateway IP and access ArgoCD at: `h
 
 ## 💻 Usage
 
+### Accessing ArgoCD UI
+
+Once ArgoCD is installed and exposed, access the UI:
+
+```bash
+# Get the Istio Ingress Gateway IP
+kubectl get svc istio-ingressgateway -n istio-system
+
+# Access via browser
+https://argocd.yourdomain.com
+```
+
+**Login credentials:**
+- Username: `admin`
+- Password: Get from secret (see installation step 4)
+
 ### Connecting to Git Repository
 
-#### Via ArgoCD UI:
-1. Login to ArgoCD
-2. Navigate to **Settings** → **Repositories**
-3. Click **Connect Repo**
-4. Enter repository details and credentials
-5. Click **Connect**
+#### Method 1: Via ArgoCD UI (Recommended)
 
-#### Via kubectl:
+1. **Login** to ArgoCD UI
+2. Click **Settings** (gear icon) in the left sidebar
+3. Select **Repositories**
+4. Click **Connect Repo** button
+5. Choose connection method: **VIA HTTPS**
+6. Fill in the details:
+   ```
+   Repository URL: https://gitlab.com/username/my-k8s-apps.git
+   Username: git
+   Password: glpat-xxxxxxxxxxxxx (Personal Access Token)
+   ```
+7. Check **Skip server verification** (if needed for self-signed certs)
+8. Click **Connect**
+9. Wait for "Successful" connection status
+
+**Creating Personal Access Token:**
+
+For **GitLab**:
+- Go to Settings → Access Tokens
+- Name: `argocd-access`
+- Scopes: ✅ `read_repository`
+- Click "Create personal access token"
+- Copy token (starts with `glpat-`)
+
+For **GitHub**:
+- Go to Settings → Developer Settings → Personal Access Tokens
+- Generate new token (classic)
+- Scopes: ✅ `repo` (Full control of private repositories)
+- Generate and copy token (starts with `ghp_`)
+
+#### Method 2: Via kubectl
+
 ```bash
 kubectl apply -f - <<EOF
 apiVersion: v1
 kind: Secret
 metadata:
-  name: my-repo
+  name: my-git-repo
   namespace: argocd
   labels:
     argocd.argoproj.io/secret-type: repository
 stringData:
   type: git
-  url: https://github.com/username/repo.git
+  url: https://gitlab.com/username/my-k8s-apps.git
   username: git
-  password: your-personal-access-token
+  password: glpat-your-personal-access-token
 EOF
 ```
 
-### Deploying Applications
+Verify connection:
+```bash
+kubectl get secrets -n argocd -l argocd.argoproj.io/secret-type=repository
+```
 
-See the complete example in [`example-app/`](example-app/) directory with:
-- Full nginx deployment
-- Step-by-step instructions
-- GitOps workflow demonstration
-- Auto-sync configuration
+### Creating Your First Application
+
+#### Method 1: Via ArgoCD UI (Recommended for Beginners)
+
+1. **Click Applications** in the left sidebar
+2. Click **+ New App** button
+3. Fill in the form:
+
+**GENERAL:**
+```
+Application Name: my-first-app
+Project: default
+Sync Policy: Automatic
+```
+
+**Sync Options** (check these):
+- ✅ **Prune Resources** - Delete resources removed from Git
+- ✅ **Self Heal** - Revert manual changes automatically
+
+**SOURCE:**
+```
+Repository URL: https://gitlab.com/username/my-k8s-apps.git
+Revision: main (or master)
+Path: . (if manifests are in root)
+```
+
+**DESTINATION:**
+```
+Cluster URL: https://kubernetes.default.svc
+Namespace: default (or your target namespace)
+```
+
+**SYNC OPTIONS:**
+- ✅ **Auto-Create Namespace** - Create namespace if it doesn't exist
+
+4. Click **Create** at the top
+5. Click **Sync** button → **Synchronize**
+
+#### Method 2: Via kubectl
+
+```bash
+kubectl apply -f - <<EOF
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: my-first-app
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: https://gitlab.com/username/my-k8s-apps.git
+    targetRevision: main
+    path: .
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: default
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+    - CreateNamespace=true
+EOF
+```
+
+### Managing Applications
+
+#### View Application Status
+
+**Via UI:**
+- Click on application card to see detailed view
+- Check sync status, health status, and resource tree
+
+**Via kubectl:**
+```bash
+# List all applications
+kubectl get applications -n argocd
+
+# Get detailed status
+kubectl get application my-first-app -n argocd -o yaml
+
+# Watch application sync
+kubectl get application my-first-app -n argocd -w
+```
+
+#### Manual Sync
+
+**Via UI:**
+- Click on application
+- Click **Sync** button
+- Review changes
+- Click **Synchronize**
+
+**Via kubectl:**
+```bash
+kubectl patch application my-first-app -n argocd \
+  --type merge \
+  -p '{"operation":{"sync":{}}}'
+```
+
+#### Refresh Application
+
+Force ArgoCD to check Git repository for changes:
+
+**Via UI:**
+- Click on application
+- Click **Refresh** button
+
+**Via kubectl:**
+```bash
+kubectl patch application my-first-app -n argocd \
+  --type merge \
+  -p '{"metadata":{"annotations":{"argocd.argoproj.io/refresh":"hard"}}}'
+```
+
+#### Delete Application
+
+**Via UI:**
+- Click on application
+- Click **Delete** button
+- Choose whether to cascade delete (remove Kubernetes resources)
+- Confirm deletion
+
+**Via kubectl:**
+```bash
+# Delete application and all resources
+kubectl delete application my-first-app -n argocd
+
+# Delete application but keep resources
+kubectl patch application my-first-app -n argocd \
+  --type merge \
+  -p '{"metadata":{"finalizers":null}}'
+kubectl delete application my-first-app -n argocd
+```
+
+### Complete Example
+
+For a full working example with step-by-step instructions, see the [`example-app/`](example-app/) directory:
+
+- 📄 **nginx-app.yaml** - Complete nginx deployment with all resources
+- 📚 **README.md** - Detailed deployment guide with:
+  - Git repository setup
+  - ArgoCD application creation
+  - Testing auto-sync
+  - Customization examples
+  - Troubleshooting tips
+
+**Quick start with example:**
+```bash
+# 1. Fork or clone this repository
+# 2. Upload example-app/nginx-app.yaml to your Git repo
+# 3. Connect your repo to ArgoCD (see above)
+# 4. Create application pointing to your repo
+# 5. Watch it deploy automatically!
+```
 
 ---
 
