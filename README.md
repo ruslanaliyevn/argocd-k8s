@@ -10,6 +10,7 @@
   </p>
   <p><strong>Production-ready ArgoCD configurations and GitOps best practices for Kubernetes</strong></p>
 </div>
+
 ---
 
 ## 📖 Table of Contents
