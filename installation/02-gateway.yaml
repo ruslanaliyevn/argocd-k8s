@@ -1,0 +1,32 @@
+# ArgoCD Istio Gateway Configuration
+# TLS Passthrough mode - ArgoCD handles its own TLS certificate
+#
+# Before applying:
+# 1. Replace "argocd.yourdomain.com" with your actual domain
+# 2. Ensure Istio is installed in your cluster
+# 3. Update DNS to point to Istio Ingress Gateway IP
+#
+# Apply with:
+# kubectl apply -f 02-gateway.yaml
+#
+# Verify with:
+# kubectl get gateway -n argocd
+
+---
+apiVersion: networking.istio.io/v1beta1
+kind: Gateway
+metadata:
+  name: argocd-gateway
+  namespace: argocd
+spec:
+  selector:
+    istio: ingressgateway  # Use Istio default gateway
+  servers:
+  - port:
+      number: 443
+      name: https
+      protocol: HTTPS
+    tls:
+      mode: PASSTHROUGH  # Traffic passes through encrypted to ArgoCD
+    hosts:
+    - "argocd.yourdomain.com"  # ⚠️ CHANGE THIS to your domain
