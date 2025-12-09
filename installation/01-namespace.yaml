@@ -1,0 +1,13 @@
+# ArgoCD Namespace
+# Create this namespace before installing ArgoCD
+#
+# Apply with:
+# kubectl apply -f 01-namespace.yaml
+
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: argocd
+  labels:
+    name: argocd
