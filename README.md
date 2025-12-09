@@ -371,7 +371,7 @@ kubectl get application my-first-app -n argocd -o yaml
 kubectl get application my-first-app -n argocd -w
 ```
 
-#### Manual Sync
+#### Manual Sync 
 
 **Via UI:**
 - Click on application
